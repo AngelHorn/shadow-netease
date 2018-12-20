@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <style>
+        div {
+            width: 800px;
+            height: 800px;
+            border: 1px solid #000000;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+<div id="container"></div>
+<div id="remoteContainer"></div>
+<script src="NIM_Web_SDK_v5.9.1/js/NIM_Web_NIM_v5.9.1.js"></script>
+<script src="NIM_Web_SDK_v5.9.1/js/NIM_Web_WebRTC_v5.9.1.js"></script>
+<script>
+    NIM.use(WebRTC);
+    let nim = NIM.getInstance({
+        debug: true,
+        appKey: 'd9166ee93e33c76ac7741753baf9ce6a',
+        account: 'admin',
+        token: '123456',
+        // privateConf: {}, // 私有化部署方案所需的配置
+        onconnect: onConnect,
+        onwillreconnect: onWillReconnect,
+        ondisconnect: onDisconnect,
+        onerror: onError
+    });
+    const Netcall = WebRTC;
+    let netcall;
+
+    function onInitCall() {
+        netcall = Netcall.getInstance({
+            nim: nim,
+            container: document.getElementById('container'),
+            remoteContainer: document.getElementById('remoteContainer'),
+            chromeId: '',
+            // 是否开启日志打印
+            debug: true
+        });
+    }
+
+    function onInitRTC() {
+        // 连接媒体网关
+        netcall.startRtc().then(function () {
+            // 开启麦克风
+            return netcall.startDevice({
+                type: Netcall.DEVICE_TYPE_AUDIO_IN
+            }).catch(function (err) {
+                console.log('启动麦克风失败')
+                console.error(err)
+            })
+        }).then(function () {
+            // 设置采集音量
+            netcall.setCaptureVolume(255)
+            // 开启摄像头
+            return netcall.startDevice({
+                type: Netcall.DEVICE_TYPE_VIDEO
+            })
+                .catch(function (err) {
+                    console.log('启动摄像头失败')
+                    console.error(err)
+                })
+        }).then(function () {
+            //预览本地画面
+            netcall.startLocalStream(
+                document.getElementById('localContainer')
+            )
+
+            // 设置本地预览画面大小
+            netcall.setVideoViewSize({
+                width: 500,
+                height: 500,
+                cut: true
+            })
+        }).catch(function (err) {
+            console.log('发生错误')
+            console.log(err)
+            netcall.hangup()
+        })
+
+        // 在回调里监听对方加入通话，并显示对方的视频画面
+        netcall.on('remoteTrack', function (obj) {
+            console.log('user join', obj)
+            // 播放对方声音
+            netcall.startDevice({
+                type: Netcall.DEVICE_TYPE_AUDIO_OUT_CHAT
+            }).catch(function (err) {
+                console.log('播放对方的声音失败')
+                console.error(err)
+            })
+            // 预览对方视频画面
+            netcall.startRemoteStream({
+                account: obj.account,
+                node: document.getElementById('remoteContainer')
+            })
+            // 设置对方预览画面大小
+            netcall.setVideoViewRemoteSize({
+                account: 'testAccount',
+                width: 500,
+                height: 500,
+                cut: true
+            })
+        })
+    }
+
+    function onAcceptedCall() {
+        // 被叫接受的通知
+        netcall.on('callAccepted', function (obj) {
+            onInitRTC();
+            console.log('on callAccepted', obj);
+            // 如果呼叫之前，启动了超时倒计时，这里可以取消呼叫倒计时
+            // 可以开启音视频连接操作。。。
+        });
+    }
+
+    function onSendCall() {
+        const pushConfig = {
+            enable: true,
+            needBadge: true,
+            needPushNick: true,
+            pushContent: '',
+            custom: '测试自定义数据',
+            pushPayload: '',
+            sound: '',
+            forceKeepCalling: 0
+        };
+        const sessionConfig = {
+            videoQuality: Netcall.CHAT_VIDEO_QUALITY_HIGH,
+            videoFrameRate: Netcall.CHAT_VIDEO_FRAME_RATE_15,
+            videoBitrate: 0,
+            recordVideo: false,
+            recordAudio: false,
+            highAudio: false,
+            bypassRtmp: false,
+            rtmpUrl: '',
+            rtmpRecord: false,
+            splitMode: Netcall.LAYOUT_SPLITLATTICETILE
+        };
+        netcall.call({
+            type: Netcall.NETCALL_TYPE_VIDEO,
+            account: 'admin2',
+            pushConfig: pushConfig,
+            sessionConfig: sessionConfig,
+            webrtcEnable: true
+        }).then(function (obj) {
+            // 成功发起呼叫
+            console.log('call success', obj);
+        }).catch(function (err) {
+            // 被叫不在线
+            console.log('fuck', err);
+            if (err.event.code === 11001) {
+                console.log('callee offline', err);
+            }
+        });
+    }
+
+
+    function onConnect() {
+        console.log('连接成功');
+        // SDK重命名
+        onInitCall();
+        onSendCall();
+        onAcceptedCall();
+    }
+
+    function onWillReconnect(obj) {
+        // 此时说明 SDK 已经断开连接, 请开发者在界面上提示用户连接已断开, 而且正在重新建立连接
+        console.log('即将重连');
+        console.log(obj.retryCount);
+        console.log(obj.duration);
+    }
+
+    function onDisconnect(error) {
+        // 此时说明 SDK 处于断开状态, 开发者此时应该根据错误码提示相应的错误信息, 并且跳转到登录页面
+        console.log('丢失连接');
+        console.log(error);
+        if (error) {
+            switch (error.code) {
+                // 账号或者密码错误, 请跳转到登录页面并提示错误
+                case 302:
+                    break;
+                // 重复登录, 已经在其它端登录了, 请跳转到登录页面并提示错误
+                case 417:
+                    break;
+                // 被踢, 请提示错误后跳转到登录页面
+                case 'kicked':
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+
+    function onError(error) {
+        console.log(error);
+    }
+</script>
+</body>
+</html>
