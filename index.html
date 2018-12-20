@@ -17,8 +17,11 @@
 <div id="remoteContainer"></div>
 <script src="NIM_Web_SDK_v5.9.1/js/NIM_Web_NIM_v5.9.1.js"></script>
 <script src="NIM_Web_SDK_v5.9.1/js/NIM_Web_WebRTC_v5.9.1.js"></script>
+<script src="NIM_Web_SDK_v5.9.1/js/NIM_Web_WhiteBoard_v5.9.1.js"></script>
+<script src="NIM_Web_SDK_v5.9.1/js/DrawPlugin.js"></script>
 <script>
     NIM.use(WebRTC);
+    NIM.use(WhiteBoard);
     let nim = NIM.getInstance({
         debug: true,
         appKey: 'd9166ee93e33c76ac7741753baf9ce6a',
@@ -31,7 +34,7 @@
         onerror: onError
     });
     const Netcall = WebRTC;
-    let netcall;
+    let netcall, whiteboard;
 
     function onInitCall() {
         netcall = Netcall.getInstance({
@@ -42,6 +45,101 @@
             // 是否开启日志打印
             debug: true
         });
+    }
+
+    function onAcceptedCall() {
+        // 被叫接受的通知
+        netcall.on('callAccepted', function (obj) {
+            onInitRTC();
+            console.log('on callAccepted', obj);
+            // 如果呼叫之前，启动了超时倒计时，这里可以取消呼叫倒计时
+            // 可以开启音视频连接操作。。。
+        });
+    }
+
+    function onSendCall() {
+        const pushConfig = {
+            enable: true,
+            needBadge: true,
+            needPushNick: true,
+            pushContent: '',
+            custom: '测试自定义数据',
+            pushPayload: '',
+            sound: '',
+            forceKeepCalling: 0
+        };
+        const sessionConfig = {
+            videoQuality: Netcall.CHAT_VIDEO_QUALITY_HIGH,
+            videoFrameRate: Netcall.CHAT_VIDEO_FRAME_RATE_15,
+            videoBitrate: 0,
+            recordVideo: false,
+            recordAudio: false,
+            highAudio: false,
+            bypassRtmp: false,
+            rtmpUrl: '',
+            rtmpRecord: false,
+            splitMode: Netcall.LAYOUT_SPLITLATTICETILE
+        };
+        netcall.call({
+            type: Netcall.NETCALL_TYPE_VIDEO,
+            account: 'admin2',
+            pushConfig: pushConfig,
+            sessionConfig: sessionConfig,
+            webrtcEnable: true
+        }).then(function (obj) {
+            // 成功发起呼叫
+            console.log('call success', obj);
+        }).catch(function (err) {
+            // 被叫不在线
+            console.log('fuck', err);
+            if (err.event.code === 11001) {
+                console.log('callee offline', err);
+            }
+        });
+    }
+
+    function onInitBoard() {
+        whiteboard = WhiteBoard.getInstance({
+            nim: nim,
+            debug: true
+        })
+    }
+
+    function onSendBoard() {
+        const pushConfig = {
+            enable: true,
+            needBadge: true,
+            needPushNick: true,
+            pushContent: '',
+            custom: '测试自定义数据',
+            pushPayload: '',
+            sound: ''
+        }
+        const sessionConfig = {
+            record: false
+        }
+        whiteboard.call({
+            type: 2,
+            netcallType: WhiteBoard.CALL_TYPE_AUDIO,
+            account: 'admin2',
+            pushConfig: pushConfig,
+            sessionConfig: sessionConfig,
+            webrtcEnable: true,
+        }).then(function (obj) {
+            // 成功发起呼叫
+            console.log('call success', obj)
+        }).catch(function (err) {
+            // 被叫不在线
+            if (err.code === 11001) {
+                console.log('callee offline', err)
+            }
+        })
+    }
+
+    function onAcceptedBoard() {
+        whiteboard.on('callAccepted', function (obj) {
+            console.log('on callAccepted', obj)
+        })
     }
 
     function onInitRTC() {
@@ -108,64 +206,18 @@
         })
     }
 
-    function onAcceptedCall() {
-        // 被叫接受的通知
-        netcall.on('callAccepted', function (obj) {
-            onInitRTC();
-            console.log('on callAccepted', obj);
-            // 如果呼叫之前，启动了超时倒计时，这里可以取消呼叫倒计时
-            // 可以开启音视频连接操作。。。
-        });
-    }
-
-    function onSendCall() {
-        const pushConfig = {
-            enable: true,
-            needBadge: true,
-            needPushNick: true,
-            pushContent: '',
-            custom: '测试自定义数据',
-            pushPayload: '',
-            sound: '',
-            forceKeepCalling: 0
-        };
-        const sessionConfig = {
-            videoQuality: Netcall.CHAT_VIDEO_QUALITY_HIGH,
-            videoFrameRate: Netcall.CHAT_VIDEO_FRAME_RATE_15,
-            videoBitrate: 0,
-            recordVideo: false,
-            recordAudio: false,
-            highAudio: false,
-            bypassRtmp: false,
-            rtmpUrl: '',
-            rtmpRecord: false,
-            splitMode: Netcall.LAYOUT_SPLITLATTICETILE
-        };
-        netcall.call({
-            type: Netcall.NETCALL_TYPE_VIDEO,
-            account: 'admin2',
-            pushConfig: pushConfig,
-            sessionConfig: sessionConfig,
-            webrtcEnable: true
-        }).then(function (obj) {
-            // 成功发起呼叫
-            console.log('call success', obj);
-        }).catch(function (err) {
-            // 被叫不在线
-            console.log('fuck', err);
-            if (err.event.code === 11001) {
-                console.log('callee offline', err);
-            }
-        });
-    }
-
-
     function onConnect() {
         console.log('连接成功');
         // SDK重命名
-        onInitCall();
-        onSendCall();
-        onAcceptedCall();
+        onInitBoard();
+        onSendBoard();
+        onAcceptedBoard();
+        if (false) {
+            //音视频通话
+            onInitCall();
+            onSendCall();
+            onAcceptedCall();
+        }
     }
 
     function onWillReconnect(obj) {
