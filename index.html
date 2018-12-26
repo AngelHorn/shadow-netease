@@ -208,15 +208,17 @@
 
     function onConnect() {
         console.log('连接成功');
-        // SDK重命名
-        onInitBoard();
-        onSendBoard();
-        onAcceptedBoard();
-        if (false) {
+
+        if (true) {
             //音视频通话
             onInitCall();
             onSendCall();
             onAcceptedCall();
+        }else{
+            // board
+            onInitBoard();
+            onSendBoard();
+            onAcceptedBoard();
         }
     }
 

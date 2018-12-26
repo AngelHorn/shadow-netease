@@ -257,13 +257,16 @@
 
     function onConnect() {
         console.log('连接成功');
-        onInitBoard();
-        onReceiveBoard();
-        onAcceptedBoard();
-        if (false) {
+        if (true) {
+            //audio
             onInitCall();
             onReceiveCall();
             onAcceptedCall();
+        } else {
+            //board
+            onInitBoard();
+            onReceiveBoard();
+            onAcceptedBoard();
         }
     }
 
